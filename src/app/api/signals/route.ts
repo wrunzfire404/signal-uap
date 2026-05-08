@@ -22,16 +22,16 @@ interface HeliusTx {
 
 export async function GET() {
   if (!HELIUS_API_KEY) {
-    return NextResponse.json({ signals: [], total: 0, error: "HELIUS_API_KEY not configured" });
+    return NextResponse.json({ signals: [], total: 0, error: "HELIUS_API_KEY not configured", debug: "env var missing" });
   }
 
   try {
-    const res = await fetch(
-      `https://api.helius.xyz/v0/addresses/${TOKEN_CA}/transactions?api-key=${HELIUS_API_KEY}&limit=50`
-    );
+    const url = `https://api.helius.xyz/v0/addresses/${TOKEN_CA}/transactions?api-key=${HELIUS_API_KEY}&limit=50`;
+    const res = await fetch(url, { cache: "no-store" });
 
     if (!res.ok) {
-      return NextResponse.json({ signals: [], total: 0, error: `Helius ${res.status}` });
+      const errText = await res.text();
+      return NextResponse.json({ signals: [], total: 0, error: `Helius ${res.status}`, debug: errText.slice(0, 200) });
     }
 
     const txs: HeliusTx[] = await res.json();
