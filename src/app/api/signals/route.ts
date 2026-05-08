@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const TOKEN_CA = "5wsDSGLYSiVK8HXggKMJimYT722QxcJaAh9WLqU2pump";
+const TOKEN_CA = "HrzddZf32V7TuNrmcnUGECyEqewnU9cY6Yx9HfpteUAP";
 const HELIUS_API_KEY = process.env.HELIUS_API_KEY || "";
 
 export const dynamic = "force-dynamic";

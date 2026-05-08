@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 
-const TOKEN_CA = "5wsDSGLYSiVK8HXggKMJimYT722QxcJaAh9WLqU2pump";
+const TOKEN_CA = "HrzddZf32V7TuNrmcnUGECyEqewnU9cY6Yx9HfpteUAP";
 const PUMP_FUN = `https://pump.fun/coin/${TOKEN_CA}`;
 const TWITTER = "https://x.com/UAPSignalDetect";
 
