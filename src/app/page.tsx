@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 const TOKEN_CA = "3jG3vjwbEuQCR3YkJKtLmH41jqHx9n36BBW1Kznkpump";
 const PUMP_FUN = `https://pump.fun/coin/${TOKEN_CA}`;
-const TWITTER = "https://x.com/SignalUAP";
+const TWITTER = "https://x.com/UAPSignalDetect";
 
 interface Signal {
   wallet: string;
@@ -47,12 +47,22 @@ function generateSimContacts(count: number): Array<{ angle: number; r: number; b
   return contacts;
 }
 
+interface ContactNode {
+  x: number;
+  y: number;
+  wallet: string;
+  angle: number;
+  r: number;
+}
+
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [signals, setSignals] = useState<Signal[]>([]);
   const [totalContacts, setTotalContacts] = useState(0);
   const [status, setStatus] = useState("SCANNING");
   const [simContacts] = useState(() => generateSimContacts(35));
+  const [hoveredContact, setHoveredContact] = useState<{ wallet: string; x: number; y: number } | null>(null);
+  const contactNodesRef = useRef<ContactNode[]>([]);
 
   // Fetch real data
   const fetchSignals = useCallback(async () => {
@@ -171,33 +181,48 @@ export default function Home() {
               angle: ((hash & 0xffff) / 0xffff) * Math.PI * 2,
               r: 0.15 + Math.sqrt(((hash >>> 16) & 0xffff) / 0xffff) * 0.8,
               brightness: 0.6,
+              wallet: sig.wallet,
             };
           })
-        : simContacts;
+        : simContacts.map((c, i) => ({ ...c, wallet: `SIM_${i}` }));
+
+      // Store node positions for hit detection
+      const nodes: ContactNode[] = [];
 
       for (const contact of contactList) {
         const x = cx + Math.cos(contact.angle) * (contact.r * maxR);
         const y = cy + Math.sin(contact.angle) * (contact.r * maxR);
+
+        nodes.push({ x, y, wallet: contact.wallet, angle: contact.angle, r: contact.r });
 
         // Brightness based on sweep proximity
         const angleDiff = ((sweepAngle - contact.angle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
         const sweepBright = angleDiff < 1.2 ? (1 - angleDiff / 1.2) : 0;
         const totalBright = Math.max(0.15, sweepBright * contact.brightness);
 
-        // Dot
+        // Dot (bigger for clickability)
         ctx.beginPath();
-        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(0, 255, 65, ${totalBright})`;
         ctx.fill();
 
         // Glow on sweep pass
         if (sweepBright > 0.3) {
           ctx.beginPath();
-          ctx.arc(x, y, 5, 0, Math.PI * 2);
+          ctx.arc(x, y, 7, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(0, 255, 65, ${sweepBright * 0.12})`;
           ctx.fill();
         }
+
+        // Wallet label for real contacts (show short addr near dot)
+        if (useReal && sweepBright > 0.5) {
+          ctx.font = "9px 'JetBrains Mono', monospace";
+          ctx.fillStyle = `rgba(0, 255, 65, ${sweepBright * 0.7})`;
+          ctx.fillText(contact.wallet.slice(0, 4) + "..." + contact.wallet.slice(-3), x + 6, y + 3);
+        }
       }
+
+      contactNodesRef.current = nodes;
 
       // Center
       ctx.beginPath();
@@ -238,19 +263,18 @@ export default function Home() {
       {/* Top bar */}
       <header className="fixed top-0 left-0 right-0 z-40 border-b border-[var(--border)] bg-black/95 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 h-12 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full bg-[var(--green)] shadow-[0_0_6px_var(--green)]" />
+          <div className="flex items-center gap-2.5">
+            <img src="/images/profile-twitter.jpg" alt="SIGNAL" className="w-7 h-7 rounded-full border border-[var(--green-dark)] shadow-[0_0_8px_rgba(0,255,65,0.2)]" />
             <span className="text-xs font-bold tracking-[0.3em] text-glow" style={{ fontFamily: "'Orbitron', monospace" }}>
               SIGNAL
             </span>
-            <span className="hidden sm:inline text-[10px] text-[var(--ink-muted)] tracking-wider">UAP SIGNAL DETECTION</span>
           </div>
           <div className="flex items-center gap-2">
             <a href={TWITTER} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--ink-dim)] border border-[var(--border)] px-2 py-1 hover:text-[var(--green)] hover:border-[var(--green-dark)] transition-colors tracking-wider">
               TWITTER
             </a>
-            <a href={PUMP_FUN} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--ink-dim)] border border-[var(--border)] px-2 py-1 hover:text-[var(--green)] hover:border-[var(--green-dark)] transition-colors font-mono">
-              {shortAddr(TOKEN_CA)}
+            <a href={PUMP_FUN} target="_blank" rel="noopener noreferrer" className="hidden sm:block text-[10px] text-[var(--ink-dim)] border border-[var(--border)] px-2 py-1 hover:text-[var(--green)] hover:border-[var(--green-dark)] transition-colors font-mono whitespace-nowrap">
+              {TOKEN_CA}
             </a>
           </div>
         </div>
@@ -337,7 +361,54 @@ export default function Home() {
               <span className="text-[9px] text-[var(--ink-muted)]">{totalContacts} contacts · live</span>
             </div>
             <div className="flex-1 flex items-center justify-center p-4 min-h-[400px] lg:min-h-[500px] relative">
-              <canvas ref={canvasRef} className="relative z-10" />
+              <canvas
+                ref={canvasRef}
+                className="relative z-10 cursor-crosshair"
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const mx = e.clientX - rect.left;
+                  const my = e.clientY - rect.top;
+                  const nodes = contactNodesRef.current;
+                  let found: ContactNode | null = null;
+                  for (const node of nodes) {
+                    if (node.wallet.startsWith("SIM_")) continue;
+                    const dist = Math.hypot(node.x - mx, node.y - my);
+                    if (dist < 12) { found = node; break; }
+                  }
+                  if (found) {
+                    setHoveredContact({ wallet: found.wallet, x: e.clientX, y: e.clientY });
+                    e.currentTarget.style.cursor = "pointer";
+                  } else {
+                    setHoveredContact(null);
+                    e.currentTarget.style.cursor = "crosshair";
+                  }
+                }}
+                onMouseLeave={() => setHoveredContact(null)}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const mx = e.clientX - rect.left;
+                  const my = e.clientY - rect.top;
+                  const nodes = contactNodesRef.current;
+                  for (const node of nodes) {
+                    if (node.wallet.startsWith("SIM_")) continue;
+                    const dist = Math.hypot(node.x - mx, node.y - my);
+                    if (dist < 12) {
+                      window.open(`https://solscan.io/account/${node.wallet}`, "_blank");
+                      break;
+                    }
+                  }
+                }}
+              />
+              {/* Hover tooltip */}
+              {hoveredContact && (
+                <div
+                  className="fixed z-50 px-2.5 py-1.5 bg-black/95 border border-[var(--green-dark)] rounded text-[10px] font-mono pointer-events-none shadow-[0_0_10px_rgba(0,255,65,0.15)]"
+                  style={{ left: hoveredContact.x + 12, top: hoveredContact.y - 30 }}
+                >
+                  <p className="text-[var(--green)]">{shortAddr(hoveredContact.wallet)}</p>
+                  <p className="text-[var(--ink-muted)] text-[9px]">Click to view on Solscan</p>
+                </div>
+              )}
               {/* Corner decorations */}
               <span className="absolute top-3 left-3 text-[8px] text-[var(--ink-muted)] font-mono tracking-wider">RNG: 250NM</span>
               <span className="absolute top-3 right-3 text-[8px] text-[var(--ink-muted)] font-mono tracking-wider">MODE: SEARCH</span>
