@@ -75,11 +75,11 @@ export default function Home() {
         setTotalContacts(data.total);
         setStatus("ACTIVE");
       } else {
-        setTotalContacts(simContacts.length);
+        setTotalContacts(0);
         setStatus("SCANNING");
       }
     } catch {
-      setTotalContacts(simContacts.length);
+      setTotalContacts(0);
       setStatus("SCANNING");
     }
   }, [simContacts.length]);
