@@ -37,24 +37,19 @@ export async function GET() {
     const txs: HeliusTx[] = await res.json();
 
     const signals = txs
-      .filter((tx) => {
-        // Only SWAP = actual buys/sells on the token
-        if (tx.type !== "SWAP") return false;
-        // Must have token transfer matching our CA
-        if (!tx.tokenTransfers) return false;
-        return tx.tokenTransfers.some((t) => t.mint === TOKEN_CA);
-      })
+      .filter((tx) => tx.type === "SWAP" && tx.tokenTransfers && tx.tokenTransfers.length > 0)
       .map((tx) => {
+        // feePayer = the person who initiated the swap (buyer or seller)
+        // This is always the real user wallet
+        const wallet = tx.feePayer;
         let amount = 0;
-        let wallet = tx.feePayer;
 
+        // Find token transfer for our mint
         if (tx.tokenTransfers) {
-          const tokenTx = tx.tokenTransfers.find((t) => t.mint === TOKEN_CA && t.tokenAmount > 0);
-          if (tokenTx) {
-            amount = tokenTx.tokenAmount;
-            // toUserAccount = the buyer (receiver of token)
-            if (tokenTx.toUserAccount && tokenTx.toUserAccount !== TOKEN_CA) {
-              wallet = tokenTx.toUserAccount;
+          for (const tt of tx.tokenTransfers) {
+            if (tt.mint === TOKEN_CA && tt.tokenAmount > 0) {
+              amount = tt.tokenAmount;
+              break;
             }
           }
         }
@@ -66,7 +61,7 @@ export async function GET() {
           signature: tx.signature,
         };
       })
-      .filter((s) => s.wallet && s.wallet !== TOKEN_CA && s.amount > 0);
+      .filter((s) => s.wallet && s.amount > 0);
 
     // Deduplicate by wallet (keep most recent)
     const seen = new Set<string>();
