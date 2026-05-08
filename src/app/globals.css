@@ -3,25 +3,101 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #000000;
+  --green: #00ff41;
+  --green-dim: #00aa2a;
+  --green-dark: #003d10;
+  --green-glow: rgba(0, 255, 65, 0.3);
+  --amber: #ffbf00;
+  --red: #ff3333;
+  --border: #0a2e0a;
+  --surface: #020d02;
+  --ink: #00ff41;
+  --ink-dim: #00aa2a;
+  --ink-muted: #005a15;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  margin: 0; padding: 0;
+  background: #000;
+  color: var(--green);
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  -webkit-font-smoothing: none;
+  overflow-x: hidden;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: var(--green-dark); border-radius: 0; }
+
+/* Scanline overlay */
+.scanlines::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* CRT flicker */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.8; }
+  94% { opacity: 1; }
+}
+
+.crt-flicker {
+  animation: flicker 8s infinite;
+}
+
+/* Radar sweep */
+@keyframes sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.radar-sweep {
+  animation: sweep 4s linear infinite;
+}
+
+/* Blink */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Pulse */
+@keyframes contact-pulse {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2.5); }
+}
+
+/* Grid background */
+.radar-grid {
+  background-image:
+    radial-gradient(circle, rgba(0,255,65,0.03) 1px, transparent 1px),
+    linear-gradient(rgba(0,255,65,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,65,0.02) 1px, transparent 1px);
+  background-size: 20px 20px, 40px 40px, 40px 40px;
+}
+
+/* Text glow */
+.text-glow {
+  text-shadow: 0 0 8px var(--green-glow), 0 0 20px rgba(0,255,65,0.15);
+}
+
+.text-glow-strong {
+  text-shadow: 0 0 10px var(--green), 0 0 30px var(--green-glow), 0 0 50px rgba(0,255,65,0.1);
 }
